@@ -58,40 +58,56 @@ namespace Bowling
                 {
                     var frameScore = frame.Score();
 
-                    //if the frame was a spare or a strike then special score rules apply
-                    if (frame.IsSpare || frame.IsStrike)
+                    if (frame.IsSpare)
                     {
-                        var nextFrame = _frames.Find(fr => fr.FrameIndex == frame.FrameIndex + 1);
-
-                        //make sure the next roll after a strike or a spare is not null
-                        if (nextFrame != null)
-                        {
-                            if (nextFrame.FirstRoll != null)
-                            {
-                                frameScore += nextFrame.FirstRoll.Value;
-                                if (frame.IsStrike)
-                                {
-                                    if (nextFrame.SecondRoll.HasValue)
-                                    {
-                                        frameScore += nextFrame.SecondRoll.Value;
-                                    }
-                                    else
-                                    {
-                                        var secondBonusFrame = _frames.Find(fr => fr.FrameIndex == frame.FrameIndex + 2);
-                                        if (secondBonusFrame != null)
-                                        {
-                                            if (secondBonusFrame.FirstRoll != null) frameScore += secondBonusFrame.FirstRoll.Value;
-                                        }
-                                    }
-
-                                }
-                            }
-                        }
-
+                        frameScore += AddSpareBonus(frame);
+                    }
+                    else if (frame.IsStrike)
+                    {
+                        frameScore += AddStrikeBonus(frame);
                     }
 
                     return frameScore;
-                });
+                }
+            );
+        }
+
+        /// <summary>
+        /// Add a bonus on a spare for the first ball of the very next frame, if it exists.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <returns></returns>
+        private int AddSpareBonus(Frame frame)
+        {
+            var nextFrame = _frames.Find(fr => fr.FrameIndex == frame.FrameIndex + 1);
+            return nextFrame != null && nextFrame.FirstRoll.HasValue ? nextFrame.FirstRoll.Value : 0;
+        }
+
+        /// <summary>
+        /// Calculates a bonus score for a strike based on the next two rolled balls. These rolls
+        /// could come from the very next frame, if it's not a strike. But, if the next rolled ball
+        /// is a strike, then it's possible this player is about to get a turkey, or 
+        /// three-strikes-in-a-row, so in that case, we check that hopeful turkey frame
+        /// for its first roll's pin total.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <returns></returns>
+        private int AddStrikeBonus(Frame frame)
+        {
+            var nextFrame = _frames.Find(fr => fr.FrameIndex == frame.FrameIndex + 1);
+            
+            if (nextFrame == null) return 0;
+            
+            var strikeBonus = nextFrame.FirstRoll.HasValue ? nextFrame.FirstRoll.Value : 0;
+            if (nextFrame.SecondRoll.HasValue) {
+                strikeBonus += nextFrame.SecondRoll.Value;
+            } else {
+                var hopefulTurkeyFrame = _frames.Find(fr => fr.FrameIndex == frame.FrameIndex + 2);
+                strikeBonus += hopefulTurkeyFrame != null && hopefulTurkeyFrame.FirstRoll.HasValue ? 
+                    hopefulTurkeyFrame.FirstRoll.Value : 0;
+            }
+
+            return strikeBonus;
         }
     }
 
@@ -119,9 +135,7 @@ namespace Bowling
 
         public virtual int Score()
         {
-
             return FirstRoll.Value + (SecondRoll.HasValue ? SecondRoll.Value : 0);
-
         }
 
         public virtual void Roll(int pins)
@@ -141,7 +155,7 @@ namespace Bowling
         {
             get
             {
-                return FirstRoll != 10 && FirstRoll + SecondRoll == 10;
+                return !IsStrike && FirstRoll + SecondRoll == 10;
             }
         }
     }
@@ -157,7 +171,8 @@ namespace Bowling
             get
             {
                 return (
-                    (IsSpare || IsStrike) && (!ThirdRoll.HasValue) ||
+                    ( (IsSpare || IsStrike) && !ThirdRoll.HasValue )
+                    ||
                     !SecondRoll.HasValue
                 );
             }

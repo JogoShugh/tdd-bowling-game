@@ -135,12 +135,33 @@ namespace specs_for_bowling
             game.Score().ShouldEqual(200);
         }
 
+        // Josh added:
         [Specification]
         public void when_rolling_all_spares_then_a_5_the_score_is_150()
         {
             10.times(() => { game.Roll(5); game.Roll(5); });
             game.Roll(5);
             game.Score().ShouldEqual(150);
+        }
+
+        [Specification]
+        public void when_rolling_a_spare_after_strike_in_tenth_the_score_is_289()
+        {
+            9.times(() => game.Roll(10));
+            game.Roll(10);
+            game.Roll(9);
+            game.Roll(1);
+            game.Score().ShouldEqual(289);
+        }
+
+        [Specification]
+        public void when_rolling_a_spare_first_in_tenth_the_score_is_279()
+        {
+            9.times(() => game.Roll(10));
+            game.Roll(9);
+            game.Roll(1);
+            game.Roll(10);
+            game.Score().ShouldEqual(279);
         }
     }
 }
